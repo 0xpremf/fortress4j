@@ -7,19 +7,39 @@ public class WindowState {
     private int requestCount;
     private Instant windowEnd;
 
-    public WindowState(int i, Duration duration) {
+    public WindowState(Duration windowDuration) {
 
-    this.requestCount = i;
-        this.windowEnd = Instant.now().plus(duration);
+        requestCount = 1;
+        this.windowEnd = Instant.now().plus(windowDuration);
+    }
+
+    public int getRequestCount() {
+        return requestCount;
+    }
+
+    public void setRequestCount(int requestCount) {
+        this.requestCount = requestCount;
+    }
+
+    public Instant getWindowEnd() {
+        return windowEnd;
     }
 
     public void setWindowEnd(Instant windowEnd) {
         this.windowEnd = windowEnd;
     }
 
-    public void setRequestCount(int requestCount) {
-        this.requestCount = requestCount;
+    public void incerementRequestCount() {
+        requestCount++;
     }
+
+    public void resetState(Duration windowDuration) {
+        requestCount = 1;
+        windowEnd = Instant.now().plus(windowDuration);
+    }
+
+
+
 
 
 }
