@@ -4,6 +4,7 @@ import com.github.fortress4j.WindowState;
 import com.github.fortress4j.config.FixedWindowConfig;
 
 import com.github.fortress4j.models.RateLimiter;
+import com.github.fortress4j.storage.InMemoryStorage;
 
 
 import java.awt.*;
@@ -19,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FixedWindowRateLimiter implements RateLimiter {
 
     private final FixedWindowConfig config;
-    private final ConcurrentHashMap<String, WindowState> storage = new ConcurrentHashMap<>();
+    private final InMemoryStorage storage;
     private final int limit;
     private final Duration windowSize;
     private final Clock clock;
@@ -28,9 +29,11 @@ public class FixedWindowRateLimiter implements RateLimiter {
         this(config, Clock.systemUTC());
     }
 
+    public FixedWindowRateLimiter(InMemoryStorage storage){
+        this.storage = storage;
+    }
 
-
-    public FixedWindowRateLimiter(FixedWindowConfig config, Clock clock) {
+    public FixedWindowRateLimiter(FixedWindowConfig config, Clock clock,InMemoryStorage  storage) {
         Objects.requireNonNull(config);
         Objects.requireNonNull(storage);
 
@@ -45,33 +48,7 @@ public class FixedWindowRateLimiter implements RateLimiter {
 
     @Override
     public Boolean tryAcquire(String key) {
-        AtomicBoolean allowed = new AtomicBoolean(false);
-        storage.compute(key, (k, state) -> {
-            Instant now = Instant.now(clock);
-            //Check if Window Exist
-            if(state==null){
-                allowed.set(true);
-                return new WindowState(windowSize);
-            }
 
-            //Windows Expired
-            if(now.isAfter(state.getWindowEnd())) {
-                state.resetState(windowSize);
-                allowed.set(true);
-                return state;
-            }
-
-            if(state.getRequestCount()>=limit){
-                allowed.set(false);
-                return state;
-            }
-             //Increment in Request
-            state.incerementRequestCount();
-            allowed.set(true);
-            return state;
-
-        });
-        return allowed.get();
 
     }
 }

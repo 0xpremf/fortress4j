@@ -1,5 +1,6 @@
 import com.github.fortress4j.algorithm.fixedwindow.FixedWindowRateLimiter;
 import com.github.fortress4j.config.FixedWindowConfig;
+import com.github.fortress4j.storage.InMemoryStorage;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
@@ -22,8 +23,11 @@ public class FixedLimiterTest {
         int poolSize = 100;
 
         FixedWindowRateLimiter rateLimiter =
-                new FixedWindowRateLimiter(
-                        new FixedWindowConfig(limit, Duration.ofSeconds(10)));
+                new FixedWindowRateLimiter(new InMemoryStorage();
+                        new FixedWindowConfig(limit, Duration.ofSeconds(10)),);
+
+
+
 
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
