@@ -5,4 +5,4 @@ public record RateLimitResult(
         long retryTime,
         long resetTime,
         long tokensRemaining
-) { }
+) {  }

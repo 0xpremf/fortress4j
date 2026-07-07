@@ -4,6 +4,16 @@ import java.time.Duration;
 import java.util.Objects;
 
 public record FixedWindowConfig(int limit, Duration windowSize) implements RateLimiterConfig {
+    @Override
+    public int limit() {
+        return limit;
+    }
+
+    @Override
+    public Duration windowSize() {
+        return windowSize;
+    }
+
     public FixedWindowConfig {
         Objects.requireNonNull(windowSize, "window must not be null");
 
@@ -14,5 +24,6 @@ public record FixedWindowConfig(int limit, Duration windowSize) implements RateL
         if (windowSize.compareTo(Duration.ZERO) <= 0) {
             throw new IllegalArgumentException("window must be greater than zero");
         }
+
     }
 }
