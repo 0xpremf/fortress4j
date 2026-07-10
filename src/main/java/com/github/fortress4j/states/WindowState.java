@@ -1,4 +1,4 @@
-package com.github.fortress4j;
+package com.github.fortress4j.states;
 
 import java.time.Duration;
 import java.time.Instant;

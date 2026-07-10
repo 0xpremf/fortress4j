@@ -1,6 +1,6 @@
 package com.github.fortress4j.algorithm.fixedwindow;
 
-import com.github.fortress4j.WindowState;
+import com.github.fortress4j.states.WindowState;
 import com.github.fortress4j.config.FixedWindowConfig;
 
 import com.github.fortress4j.models.RateLimiter;
@@ -45,6 +45,7 @@ public class FixedWindowRateLimiter<K> implements RateLimiter<K> {
 
                 }
                 if(state.getRequestCount()>=config.limit()){
+                    accepted.set(true);
                     return state;
                 }
                 state.incerementRequestCount();
