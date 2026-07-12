@@ -6,6 +6,10 @@ import java.util.Objects;
 
 public record SlidingWindowConfig(int limit, Duration windowSize) implements RateLimiterConfig {
 
+
+
+
+
     public SlidingWindowConfig {
         Objects.requireNonNull(windowSize, "window must not be null");
 

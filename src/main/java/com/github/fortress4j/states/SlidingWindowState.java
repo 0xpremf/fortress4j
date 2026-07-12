@@ -7,6 +7,12 @@ public class SlidingWindowState {
     private int currentWindowCount;
     private Instant currentWindowStartTime;
 
+    public SlidingWindowState(Instant windowStart) {
+        this.currentWindowCount = 1;
+        this.prevWindowCount = 0;
+        this.currentWindowStartTime = windowStart;
+    }
+
 
     public int getPrevWindowCount() {
         return prevWindowCount;
