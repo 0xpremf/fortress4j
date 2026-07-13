@@ -8,7 +8,7 @@ public class SlidingWindowState {
     private Instant currentWindowStartTime;
 
     public SlidingWindowState(Instant windowStart) {
-        this.currentWindowCount = 1;
+        this.currentWindowCount = 0;
         this.prevWindowCount = 0;
         this.currentWindowStartTime = windowStart;
     }

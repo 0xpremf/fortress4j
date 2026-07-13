@@ -1,5 +1,6 @@
 package com.github.fortress4j.algorithm.fixedwindow;
 
+import com.github.fortress4j.models.RateLimitResult;
 import com.github.fortress4j.states.WindowState;
 import com.github.fortress4j.config.FixedWindowConfig;
 
@@ -8,10 +9,13 @@ import com.github.fortress4j.storage.InMemoryStorage;
 import com.github.fortress4j.storage.Storage;
 
 
+import java.sql.SQLOutput;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class FixedWindowRateLimiter<K> implements RateLimiter<K> {
 
@@ -30,29 +34,54 @@ public class FixedWindowRateLimiter<K> implements RateLimiter<K> {
     }
 
     @Override
-    public Boolean tryAcquire(K key) {
+    public RateLimitResult tryAcquire(K key) {
         AtomicBoolean accepted = new AtomicBoolean(false);
+        AtomicReference<Integer> estimatedRequests = new AtomicReference<>(0);
+        AtomicReference<Instant> resetAt = new AtomicReference<>();
+        AtomicReference<Duration> retryAfter = new AtomicReference<>(Duration.ZERO);
         storage.compute(key,(userKey,state)->{
                 Instant now = clock.instant();
                  if(state==null){
+                     state = new WindowState(config.windowSize(), now);
+                    state.incrementRequestCount();
                      accepted.set(true);
-                     return new WindowState(config.windowSize());
+                     return state;
                  }
                 if(now.isAfter(state.getWindowEnd())){
                     state.resetState(config.windowSize());
+                    state.incrementRequestCount();
                     accepted.set(true);
                     return state;
 
                 }
+
+
                 if(state.getRequestCount()>=config.limit()){
-                    accepted.set(true);
+                    accepted.set(false);
+                    Instant reset = state.getWindowEnd();
+                    resetAt.set(reset);
+                    retryAfter.set(Duration.between(now,reset));
+
+
+
                     return state;
+
                 }
-                state.incerementRequestCount();
+                state.incrementRequestCount();
+
                 accepted.set(true);
+                estimatedRequests.set(config.limit() - state.getRequestCount());
+
                 return state;
         });
-        return accepted.get();
+
+        return new  RateLimitResult(
+                accepted.get(),
+                estimatedRequests.get(),
+                retryAfter.get(),
+                resetAt.get()
+
+                );
 
     }
 }

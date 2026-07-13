@@ -9,7 +9,6 @@ public record FixedWindowConfig(int limit, Duration windowSize) implements RateL
         return limit;
     }
 
-    @Override
     public Duration windowSize() {
         return windowSize;
     }
