@@ -1,6 +1,7 @@
 package com.github.fortress4j.algorithm.slindingWindow;
 
 import com.github.fortress4j.config.SlidingWindowConfig;
+import com.github.fortress4j.models.RateLimitResult;
 import com.github.fortress4j.models.RateLimiter;
 import com.github.fortress4j.states.SlidingWindowState;
 import com.github.fortress4j.storage.InMemoryStorage;
@@ -10,6 +11,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
 
@@ -33,59 +35,109 @@ public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
 
     }
 
-
     @Override
-    public Boolean tryAcquire(K key) {
+    public RateLimitResult tryAcquire(K key) {
+
         AtomicBoolean accepted = new AtomicBoolean(false);
-        storage.compute(key, (userkey, state)->{
+        AtomicReference<Double> estimatedRequests = new AtomicReference<>(0.0);
+        AtomicReference<Instant> resetAt = new AtomicReference<>();
+        AtomicReference<Duration> retryAfter = new AtomicReference<>(Duration.ZERO);
+
+        storage.compute(key, (userKey, state) -> {
+
             Instant now = clock.instant();
+            long windowMillis = config.windowSize().toMillis();
+
             if (state == null) {
-
-                accepted.set(true);
-
-                return new SlidingWindowState(now);
-
+                state = new SlidingWindowState(now);
             }
 
-             // Tells Us how many windows have passed??
-            Duration elapsed = Duration.between(state.getCurrentWindowStartTime(),now);
+            // How many windows have passed?
+            Duration elapsed = Duration.between(
+                    state.getCurrentWindowStartTime(),
+                    now
+            );
+
             long elapsedMillis = elapsed.toMillis();
-            long windowMillis = config.windowSize().toMillis();
-            long windowPassed=elapsedMillis/windowMillis;
+            long windowsPassed = elapsedMillis / windowMillis;
 
-
-            if(windowPassed==1){
+            if (windowsPassed == 1) {
 
                 state.setPrevWindowCount(state.getCurrentWindowCount());
                 state.setCurrentWindowCount(0);
-                state.setCurrentWindowStartTime(state.getCurrentWindowStartTime().plus(config.windowSize()));
+                state.setCurrentWindowStartTime(
+                        state.getCurrentWindowStartTime().plus(config.windowSize())
+                );
 
-            }
-            else if(windowPassed>1){
+            } else if (windowsPassed > 1) {
+
                 state.setPrevWindowCount(0);
                 state.setCurrentWindowCount(0);
+
                 long nowMillis = now.toEpochMilli();
-                long alignedWindowStart = nowMillis-(nowMillis%windowMillis);
-                Instant windowStart  = Instant.ofEpochMilli(alignedWindowStart);
-                state.setCurrentWindowStartTime(windowStart);
+                long alignedWindowStart = nowMillis - (nowMillis % windowMillis);
+
+                state.setCurrentWindowStartTime(
+                        Instant.ofEpochMilli(alignedWindowStart)
+                );
             }
 
-            long elapsedInsideCurrentWindow=Duration.between(state.getCurrentWindowStartTime(),now).toMillis();
-            double weight = (double) (windowMillis - elapsedInsideCurrentWindow)/windowMillis;
-            double estimateRequests = weight*(state.getPrevWindowCount()) + state.getCurrentWindowCount();
+            long elapsedInsideCurrentWindow =
+                    Duration.between(
+                            state.getCurrentWindowStartTime(),
+                            now
+                    ).toMillis();
 
-            if(estimateRequests>=config.limit()){
+            double weight =
+                    (double) (windowMillis - elapsedInsideCurrentWindow)
+                            / windowMillis;
+
+            double estimate =
+                    weight * state.getPrevWindowCount()
+                            + state.getCurrentWindowCount();
+
+            estimatedRequests.set(estimate);
+
+            if (estimate >= config.limit()) {
+
                 accepted.set(false);
+
+                Instant reset =
+                        state.getCurrentWindowStartTime().plus(config.windowSize());
+
+                resetAt.set(reset);
+                retryAfter.set(Duration.between(now, reset));
+
                 return state;
             }
-            else{
-                state.setCurrentWindowCount(state.getCurrentWindowCount()+1);
-                accepted.set(true);
-            }
 
+            state.setCurrentWindowCount(
+                    state.getCurrentWindowCount() + 1
+            );
+
+            estimatedRequests.set(estimate + 1);
+            accepted.set(true);
+
+            Instant reset =
+                    state.getCurrentWindowStartTime().plus(config.windowSize());
+
+            resetAt.set(reset);
+            retryAfter.set(Duration.between(now, reset));
 
             return state;
         });
-        return accepted.get();
+
+        int remainingRequests = Math.max(
+                0,
+                config.limit() - (int) Math.ceil(estimatedRequests.get())
+        );
+
+        return new RateLimitResult(
+                accepted.get(),
+                remainingRequests,
+                retryAfter.get(),
+                resetAt.get()
+        );
     }
+
 }
