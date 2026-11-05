@@ -1,9 +1,6 @@
-import com.github.fortress4j.algorithm.fixedwindow.FixedWindowRateLimiter;
-import com.github.fortress4j.algorithm.slindingWindow.SlidingWindowRateLimiter;
-import com.github.fortress4j.config.FixedWindowConfig;
+import com.github.fortress4j.algorithm.slidingWindow.SlidingWindowRateLimiter;
 import com.github.fortress4j.config.SlidingWindowConfig;
 import com.github.fortress4j.models.RateLimitResult;
-import com.github.fortress4j.states.SlidingWindowState;
 import com.github.fortress4j.storage.InMemoryStorage;
 import org.testng.annotations.Test;
 

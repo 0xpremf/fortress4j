@@ -1,4 +1,4 @@
-package com.github.fortress4j.algorithm.TokenBucket;
+package com.github.fortress4j.algorithm.tokenBucket;
 
 import com.github.fortress4j.config.TokenBucketConfig;
 import com.github.fortress4j.models.RateLimitResult;

@@ -1,4 +1,4 @@
-package com.github.fortress4j.algorithm.slindingWindow;
+package com.github.fortress4j.algorithm.slidingWindow;
 
 import com.github.fortress4j.config.SlidingWindowConfig;
 import com.github.fortress4j.models.RateLimitResult;
