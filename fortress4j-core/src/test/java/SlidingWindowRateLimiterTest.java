@@ -2,16 +2,18 @@ import com.github.fortress4j.algorithm.slidingWindow.SlidingWindowRateLimiter;
 import com.github.fortress4j.config.SlidingWindowConfig;
 import com.github.fortress4j.models.RateLimitResult;
 import com.github.fortress4j.storage.InMemoryStorage;
-import org.testng.annotations.Test;
+import org.junit.Test;
+
 
 import java.time.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.testng.AssertJUnit.*;
+
 
 
 
@@ -53,7 +55,7 @@ public class SlidingWindowRateLimiterTest {
         }
 
         @Test
-        void shouldHandleDifferentUsers(){
+        public void shouldHandleDifferentUsers(){
             int limit=2;
             SlidingWindowConfig config = new SlidingWindowConfig(limit,
                     Duration.ofSeconds(10));
@@ -79,7 +81,7 @@ public class SlidingWindowRateLimiterTest {
         }
 
      @Test
-    void shouldAllowExactlyLimitRequestsConcurrently() throws Exception {
+     public void shouldAllowExactlyLimitRequestsConcurrently() throws Exception {
 
         int limit = 100;
         int threads = 500;

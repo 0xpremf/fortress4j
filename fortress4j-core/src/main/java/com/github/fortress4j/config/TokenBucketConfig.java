@@ -17,4 +17,11 @@ public record TokenBucketConfig(
         }
 
     }
+
+    public long fullRefillNanos() {
+        long intervals = (bucketSize + refillAmount - 1) / refillAmount;   // ceil
+        return intervals > Long.MAX_VALUE / refillIntervalNanos
+                ? Long.MAX_VALUE
+                : intervals * refillIntervalNanos;
+    }
 }
