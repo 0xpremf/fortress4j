@@ -7,7 +7,7 @@ public record RateLimitResult(
 
         boolean allowed,
 
-        int remainingRequests,
+        long remainingRequests,
 
         Duration retryAfter,
 

@@ -46,7 +46,10 @@ public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
         storage.compute(key, (userKey, state) -> {
 
             Instant now = clock.instant();
+
             long windowMillis = config.windowSize().toMillis();
+
+            var winSize = config.windowSize();
 
             if (state == null) {
                 state = new SlidingWindowState(now);
@@ -66,7 +69,7 @@ public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
                 state.setPrevWindowCount(state.getCurrentWindowCount());
                 state.setCurrentWindowCount(0);
                 state.setCurrentWindowStartTime(
-                        state.getCurrentWindowStartTime().plus(config.windowSize())
+                        state.getCurrentWindowStartTime().plus(winSize)
                 );
 
             } else if (windowsPassed > 1) {
@@ -119,7 +122,7 @@ public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
             accepted.set(true);
 
             Instant reset =
-                    state.getCurrentWindowStartTime().plus(config.windowSize());
+                    state.getCurrentWindowStartTime().plus(winSize);
 
             resetAt.set(reset);
             retryAfter.set(Duration.between(now, reset));
