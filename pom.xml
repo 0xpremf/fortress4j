@@ -9,12 +9,14 @@
     <modules>
         <module>fortress4j-core</module>
         <module>fortress4j-examples</module>
+        <module>fortress4j-redis</module>
     </modules>
 
     <properties>
-        <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.release>25</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
 
     <dependencyManagement>
         <dependencies>
@@ -24,9 +26,28 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>fortress4j-redis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.lettuce</groupId>
+                <artifactId>lettuce-core</artifactId>
+                <version>6.5.5.RELEASE</version>
+            </dependency>
+
+            <!-- BOMs (type=pom, scope=import) -->
+            <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
                 <version>5.11.3</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>1.20.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
