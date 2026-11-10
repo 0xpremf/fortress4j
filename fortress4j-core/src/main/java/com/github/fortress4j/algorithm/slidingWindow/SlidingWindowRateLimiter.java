@@ -11,121 +11,77 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
 
+    private final SlidingWindowConfig config;
+    private final InMemoryStorage<K, SlidingWindowState> storage;
+    private final Clock clock;
 
-    SlidingWindowConfig config;
-    InMemoryStorage<K, SlidingWindowState>  storage;
-    Clock clock;
-
-
-
-
-    public SlidingWindowRateLimiter(SlidingWindowConfig config,InMemoryStorage<K,SlidingWindowState> storage) {
+    public SlidingWindowRateLimiter(SlidingWindowConfig config, InMemoryStorage<K, SlidingWindowState> storage) {
         this(config, storage, Clock.systemUTC());
     }
 
     public SlidingWindowRateLimiter(SlidingWindowConfig config, InMemoryStorage<K, SlidingWindowState> storage, Clock clock) {
-        this.config = Objects.requireNonNull(config);
-        this.storage = Objects.requireNonNull(storage);
-        this.clock = Objects.requireNonNull(clock);
-
-
+        this.config = Objects.requireNonNull(config, "config cannot be null");
+        this.storage = Objects.requireNonNull(storage, "storage cannot be null");
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
     }
 
     @Override
     public RateLimitResult tryAcquire(K key) {
+        Objects.requireNonNull(key, "key cannot be null");
 
         AtomicBoolean accepted = new AtomicBoolean(false);
         AtomicReference<Double> estimatedRequests = new AtomicReference<>(0.0);
         AtomicReference<Instant> resetAt = new AtomicReference<>();
-        AtomicReference<Duration> retryAfter = new AtomicReference<>(Duration.ZERO);
+        AtomicLong retryAfterMs = new AtomicLong(0L);
 
         storage.compute(key, (userKey, state) -> {
-
             Instant now = clock.instant();
-
             long windowMillis = config.windowSize().toMillis();
-
-            var winSize = config.windowSize();
+            Duration winSize = config.windowSize();
 
             if (state == null) {
                 state = new SlidingWindowState(now);
             }
 
             // How many windows have passed?
-            Duration elapsed = Duration.between(
-                    state.getCurrentWindowStartTime(),
-                    now
-            );
-
-            long elapsedMillis = elapsed.toMillis();
+            Duration elapsed = Duration.between(state.getCurrentWindowStartTime(), now);
+            long elapsedMillis = Math.max(0, elapsed.toMillis());
             long windowsPassed = elapsedMillis / windowMillis;
 
             if (windowsPassed == 1) {
-
                 state.setPrevWindowCount(state.getCurrentWindowCount());
                 state.setCurrentWindowCount(0);
-                state.setCurrentWindowStartTime(
-                        state.getCurrentWindowStartTime().plus(winSize)
-                );
-
+                state.setCurrentWindowStartTime(state.getCurrentWindowStartTime().plus(winSize));
             } else if (windowsPassed > 1) {
-
                 state.setPrevWindowCount(0);
                 state.setCurrentWindowCount(0);
-
-                long nowMillis = now.toEpochMilli();
-                long alignedWindowStart = nowMillis - (nowMillis % windowMillis);
-
-                state.setCurrentWindowStartTime(
-                        Instant.ofEpochMilli(alignedWindowStart)
-                );
+                long skippedWindows = windowsPassed;
+                state.setCurrentWindowStartTime(state.getCurrentWindowStartTime().plus(winSize.multipliedBy(skippedWindows)));
             }
 
-            long elapsedInsideCurrentWindow =
-                    Duration.between(
-                            state.getCurrentWindowStartTime(),
-                            now
-                    ).toMillis();
+            long elapsedInsideCurrentWindow = Math.max(0, Duration.between(state.getCurrentWindowStartTime(), now).toMillis());
+            double weight = (double) Math.max(0, windowMillis - elapsedInsideCurrentWindow) / windowMillis;
+            double estimate = weight * state.getPrevWindowCount() + state.getCurrentWindowCount();
 
-            double weight =
-                    (double) (windowMillis - elapsedInsideCurrentWindow)
-                            / windowMillis;
-
-            double estimate =
-                    weight * state.getPrevWindowCount()
-                            + state.getCurrentWindowCount();
-
-            estimatedRequests.set(estimate);
+            Instant reset = state.getCurrentWindowStartTime().plus(winSize);
+            resetAt.set(reset);
 
             if (estimate >= config.limit()) {
-
                 accepted.set(false);
-
-                Instant reset =
-                        state.getCurrentWindowStartTime().plus(config.windowSize());
-
-                resetAt.set(reset);
-                retryAfter.set(Duration.between(now, reset));
-
+                estimatedRequests.set(estimate);
+                retryAfterMs.set(Math.max(0, Duration.between(now, reset).toMillis()));
                 return state;
             }
 
-            state.setCurrentWindowCount(
-                    state.getCurrentWindowCount() + 1
-            );
-
+            state.setCurrentWindowCount(state.getCurrentWindowCount() + 1);
             estimatedRequests.set(estimate + 1);
             accepted.set(true);
-
-            Instant reset =
-                    state.getCurrentWindowStartTime().plus(winSize);
-
-            resetAt.set(reset);
-            retryAfter.set(Duration.between(now, reset));
+            retryAfterMs.set(0L);
 
             return state;
         });
@@ -138,9 +94,8 @@ public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
         return new RateLimitResult(
                 accepted.get(),
                 remainingRequests,
-                retryAfter.get(),
+                retryAfterMs.get(),
                 resetAt.get()
         );
     }
-
 }

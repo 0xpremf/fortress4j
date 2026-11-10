@@ -3,6 +3,7 @@ target/
 !src/main/**/target/
 !src/test/**/target/
 .kotlin
+errors.md
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

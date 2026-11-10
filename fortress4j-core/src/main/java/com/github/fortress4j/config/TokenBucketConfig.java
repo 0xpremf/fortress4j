@@ -4,8 +4,6 @@ public record TokenBucketConfig(
         long bucketSize,
         long refillAmount,
         long refillIntervalNanos
-
-
 ) implements RateLimiterConfig {
 
     public TokenBucketConfig {
@@ -15,7 +13,9 @@ public record TokenBucketConfig(
         if (refillAmount <= 0) {
             throw new IllegalArgumentException("refillAmount must be greater than 0");
         }
-
+        if (refillIntervalNanos <= 0) {
+            throw new IllegalArgumentException("refillIntervalNanos must be greater than 0");
+        }
     }
 
     public long fullRefillNanos() {

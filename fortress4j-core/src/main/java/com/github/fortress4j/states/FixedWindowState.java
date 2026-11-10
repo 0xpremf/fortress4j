@@ -1,16 +1,14 @@
 package com.github.fortress4j.states;
 
-import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
-public class WindowState {
+public class FixedWindowState {
     private int requestCount;
     private Instant windowEnd;
 
-    public WindowState(Duration windowDuration, Instant now) {
-
-        requestCount = 0;
+    public FixedWindowState(Duration windowDuration, Instant now) {
+        this.requestCount = 0;
         this.windowEnd = now.plus(windowDuration);
     }
 
@@ -34,13 +32,12 @@ public class WindowState {
         requestCount++;
     }
 
-    public void resetState(Duration windowDuration) {
-        requestCount = 0;
-        windowEnd = Instant.now().plus(windowDuration);
+    public void resetState(Duration windowDuration, Instant now) {
+        this.requestCount = 0;
+        this.windowEnd = now.plus(windowDuration);
     }
 
-
-
-
-
+    public void resetState(Duration windowDuration) {
+        resetState(windowDuration, Instant.now());
+    }
 }

@@ -2,87 +2,81 @@ import com.github.fortress4j.algorithm.slidingWindow.SlidingWindowRateLimiter;
 import com.github.fortress4j.config.SlidingWindowConfig;
 import com.github.fortress4j.models.RateLimitResult;
 import com.github.fortress4j.storage.InMemoryStorage;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-
-import java.time.*;
-import java.util.concurrent.*;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
-
-
-
-
 public class SlidingWindowRateLimiterTest {
 
-        @Test
-        public void shouldAllowRequestsUntilLimit() {
+    @Test
+    public void shouldAllowRequestsUntilLimit() {
+        Clock clock = Clock.fixed(
+                Instant.parse("2026-01-01T00:00:00Z"),
+                ZoneOffset.UTC
+        );
 
-            Clock clock = Clock.fixed(
-                    Instant.parse("2026-01-01T00:00:00Z"),
-                    ZoneOffset.UTC
-            );
+        SlidingWindowConfig config = new SlidingWindowConfig(
+                5,
+                Duration.ofSeconds(10)
+        );
 
-            SlidingWindowConfig config = new SlidingWindowConfig(
-                    5,
-                    Duration.ofSeconds(10)
-            );
+        SlidingWindowRateLimiter<String> limiter =
+                new SlidingWindowRateLimiter<>(
+                        config,
+                        new InMemoryStorage<>(),
+                        clock
+                );
 
-            SlidingWindowRateLimiter<String> limiter =
-                    new SlidingWindowRateLimiter<>(
-                            config,new InMemoryStorage<>(),
-                            clock
-                    );
-
-            for (int i = 1; i <= 5; i++) {
-
-                RateLimitResult result = limiter.tryAcquire("user1");
-
-                assertTrue(result.allowed());
-                assertEquals(5 - i, result.remainingRequests());
-            }
-
-            RateLimitResult rejected = limiter.tryAcquire("user1");
-
-            assertFalse(rejected.allowed());
-            assertEquals(0, rejected.remainingRequests());
-            assertTrue(rejected.retryAfter().toMillis() > 0);
+        for (int i = 1; i <= 5; i++) {
+            RateLimitResult result = limiter.tryAcquire("user1");
+            assertTrue(result.allowed());
+            assertEquals(5 - i, result.remainingRequests());
         }
 
-        @Test
-        public void shouldHandleDifferentUsers(){
-            int limit=2;
-            SlidingWindowConfig config = new SlidingWindowConfig(limit,
-                    Duration.ofSeconds(10));
+        RateLimitResult rejected = limiter.tryAcquire("user1");
+        assertFalse(rejected.allowed());
+        assertEquals(0, rejected.remainingRequests());
+        assertTrue(rejected.retryAfter() > 0);
+    }
 
+    @Test
+    public void shouldHandleDifferentUsers() {
+        int limit = 2;
+        SlidingWindowConfig config = new SlidingWindowConfig(limit, Duration.ofSeconds(10));
+        SlidingWindowRateLimiter<String> limiter = new SlidingWindowRateLimiter<>(config, new InMemoryStorage<>());
 
+        assertTrue(limiter.tryAcquire("alice").allowed());
+        assertTrue(limiter.tryAcquire("alice").allowed());
 
-            SlidingWindowRateLimiter<String> limiter = new SlidingWindowRateLimiter<>(config,new InMemoryStorage<>());
-            assertTrue(limiter.tryAcquire("alice").allowed());
-            assertTrue(limiter.tryAcquire("alice").allowed());
+        // Bob
+        assertTrue(limiter.tryAcquire("bob").allowed());
 
-            // Bob
-            assertTrue(limiter.tryAcquire("bob").allowed());
+        // Alice exceeded
+        assertFalse(limiter.tryAcquire("alice").allowed());
 
-            // Alice exceeded
-            assertFalse(limiter.tryAcquire("alice").allowed());
+        // Bob still has one request left
+        assertTrue(limiter.tryAcquire("bob").allowed());
 
-            // Bob still has one request left
-            assertTrue(limiter.tryAcquire("bob").allowed());
+        // Bob exceeded
+        assertFalse(limiter.tryAcquire("bob").allowed());
+    }
 
-            // Bob exceeded
-            assertFalse(limiter.tryAcquire("bob").allowed());
-
-        }
-
-     @Test
-     public void shouldAllowExactlyLimitRequestsConcurrently() throws Exception {
-
+    @Test
+    public void shouldAllowExactlyLimitRequestsConcurrently() throws Exception {
         int limit = 100;
         int threads = 500;
 
@@ -113,20 +107,15 @@ public class SlidingWindowRateLimiterTest {
         ConcurrentLinkedQueue<Throwable> errors = new ConcurrentLinkedQueue<>();
 
         for (int i = 0; i < threads; i++) {
-
             executor.submit(() -> {
                 try {
-
                     start.await();
-
                     RateLimitResult result = limiter.tryAcquire("user");
-
                     if (result.allowed()) {
                         allowed.incrementAndGet();
                     } else {
                         rejected.incrementAndGet();
                     }
-
                 } catch (Throwable t) {
                     errors.add(t);
                 } finally {
@@ -136,23 +125,10 @@ public class SlidingWindowRateLimiterTest {
         }
 
         start.countDown();
-
-
-
-
         executor.shutdown();
-
         assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
 
-
-         assertEquals(
-                 threads,
-                 allowed.get() + rejected.get()
-         );
-        System.out.println("Allowed : " + allowed.get());
-        System.out.println("Rejected: " + rejected.get());
-        System.out.println("Total   : " + (allowed.get() + rejected.get()));
-
+        assertEquals(threads, allowed.get() + rejected.get());
         if (!errors.isEmpty()) {
             errors.forEach(Throwable::printStackTrace);
             fail("Worker threads threw exceptions.");
@@ -161,11 +137,4 @@ public class SlidingWindowRateLimiterTest {
         assertEquals(limit, allowed.get());
         assertEquals(threads - limit, rejected.get());
     }
-
-
-
 }
-
-
-
-

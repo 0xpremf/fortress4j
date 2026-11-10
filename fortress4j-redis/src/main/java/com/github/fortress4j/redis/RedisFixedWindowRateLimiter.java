@@ -7,7 +7,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -47,14 +46,14 @@ public class RedisFixedWindowRateLimiter<K> implements RateLimiter<K> {
                                 Function<K, String> keyMapper,
                                 Clock clock,
                                 LongSupplier serverTimeOverrideMillis) {
-        Objects.requireNonNull(config);
-        this.commands = Objects.requireNonNull(connection).sync();
-        this.keyPrefix = Objects.requireNonNull(keyPrefix);
-        this.keyMapper = Objects.requireNonNull(keyMapper);
-        this.clock = Objects.requireNonNull(clock);
-        this.serverTimeOverrideMillis = Objects.requireNonNull(serverTimeOverrideMillis);
+        Objects.requireNonNull(config, "config cannot be null");
+        this.commands = Objects.requireNonNull(connection, "connection cannot be null").sync();
+        this.keyPrefix = Objects.requireNonNull(keyPrefix, "keyPrefix cannot be null");
+        this.keyMapper = Objects.requireNonNull(keyMapper, "keyMapper cannot be null");
+        this.clock = Objects.requireNonNull(clock, "clock cannot be null");
+        this.serverTimeOverrideMillis = Objects.requireNonNull(serverTimeOverrideMillis, "serverTimeOverrideMillis cannot be null");
 
-        if (config.limit() <= 0 || config.windowSize().toNanos()<= 0) {
+        if (config.limit() <= 0 || config.windowSize().isNegative() || config.windowSize().isZero()) {
             throw new IllegalArgumentException("Limit and window must be positive");
         }
         if (config.windowSize().toNanos() % NANOS_PER_MILLI != 0) {
@@ -89,8 +88,8 @@ public class RedisFixedWindowRateLimiter<K> implements RateLimiter<K> {
 
         return new RateLimitResult(
                 allowed,
-                (int) remaining,                  // safe: limit is capped at Integer.MAX_VALUE
-                Duration.ofMillis(retryAfterMs),
+                remaining,
+                retryAfterMs,
                 resetAt(now, resetAfterMs));
     }
 

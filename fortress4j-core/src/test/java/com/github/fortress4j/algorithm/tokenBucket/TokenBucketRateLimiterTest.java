@@ -56,7 +56,7 @@ class TokenBucketRateLimiterTest {
         RateLimitResult denied = rl.tryAcquire("a");
         assertFalse(denied.allowed());
         assertEquals(0, denied.remainingRequests());
-        assertEquals(Duration.ofSeconds(1), denied.retryAfter());
+        assertEquals(1000L, denied.retryAfter());
     }
 
     @Test
@@ -93,7 +93,7 @@ class TokenBucketRateLimiterTest {
 
         RateLimitResult denied = rl.tryAcquire("a");
         assertFalse(denied.allowed());
-        assertEquals(Duration.ofMillis(500), denied.retryAfter());
+        assertEquals(500L, denied.retryAfter());
 
         advance(SEC / 2);                                 // t = 2.0s
         assertTrue(rl.tryAcquire("a").allowed());
