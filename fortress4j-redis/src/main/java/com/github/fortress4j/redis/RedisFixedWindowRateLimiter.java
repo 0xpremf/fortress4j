@@ -39,7 +39,6 @@ public class RedisFixedWindowRateLimiter<K> implements RateLimiter<K> {
         this(config, connection, keyPrefix, keyMapper, Clock.systemUTC(), () -> -1L);
     }
 
-    // Package-private: tests inject a fake time source (the Lua script accepts it).
     RedisFixedWindowRateLimiter(FixedWindowConfig config,
                                 StatefulRedisConnection<String, String> connection,
                                 String keyPrefix,
