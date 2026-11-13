@@ -163,6 +163,80 @@ public class SlidingWindowRateLimiterTest {
         assertEquals(threads - limit, rejected.get());
     }
 
+    private static final class MutableClock extends Clock {
+
+        private Instant now;
+        private final ZoneId zone;
+
+        private MutableClock(Instant now, ZoneId zone) {
+            this.now = now;
+            this.zone = zone;
+        }
+
+        void advance(Duration duration) {
+            now = now.plus(duration);
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return zone;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return new MutableClock(now, zone);
+        }
+
+        @Override
+        public Instant instant() {
+            return now;
+        }
+    }
+    @Test
+    void remainingRequestsMatchesStrictLimitAtFractionalPreviousWindow() {
+
+        MutableClock clock = new MutableClock(
+                Instant.parse("2026-01-01T00:00:00Z"),
+                ZoneOffset.UTC
+        );
+
+        SlidingWindowConfig config = new SlidingWindowConfig(
+                5,
+                Duration.ofSeconds(10)
+        );
+
+        SlidingWindowRateLimiter<String> limiter =
+                new SlidingWindowRateLimiter<>(
+                        config,
+                        new InMemoryStorage<>(),
+                        clock
+                );
+
+        // Fill the first window: currentWindowCount = 5
+        for (int i = 0; i < 5; i++) {
+            assertTrue(limiter.tryAcquire("user").allowed());
+        }
+
+        // Move to the middle of the next window:
+        // prevWindowCount = 5, weight = 0.5, estimate = 2.5
+        clock.advance(Duration.ofSeconds(15));
+
+        RateLimitResult first = limiter.tryAcquire("user");
+        assertTrue(first.allowed());
+        // 2.5 + 1 = 3.5; floor(5 - 3.5) = 1
+        assertEquals(1L, first.remainingRequests());
+
+        RateLimitResult second = limiter.tryAcquire("user");
+        assertTrue(second.allowed());
+        // 3.5 + 1 = 4.5; floor(5 - 4.5) = 0
+        assertEquals(0L, second.remainingRequests());
+
+        RateLimitResult third = limiter.tryAcquire("user");
+        assertFalse(third.allowed());
+        // 4.5 + 1 = 5.5 > 5, so rejected
+        assertEquals(0L, third.remainingRequests());
+    }
+
 
 
 }

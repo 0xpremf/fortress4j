@@ -39,100 +39,69 @@ public class SlidingWindowRateLimiter<K> implements RateLimiter<K> {
     public RateLimitResult tryAcquire(K key) {
 
         AtomicBoolean accepted = new AtomicBoolean(false);
-        AtomicReference<Double> estimatedRequests = new AtomicReference<>(0.0);
+        // Now stores the estimate AFTER this operation, on BOTH branches,
+        // so the post-processing formula has consistent input.
+        AtomicReference<Double> finalEstimate = new AtomicReference<>(0.0);
         AtomicReference<Instant> resetAt = new AtomicReference<>();
         AtomicReference<Duration> retryAfter = new AtomicReference<>(Duration.ZERO);
 
         storage.compute(key, (userKey, state) -> {
 
             Instant now = clock.instant();
-
             long windowMillis = config.windowSize().toMillis();
-
             var winSize = config.windowSize();
 
             if (state == null) {
                 state = new SlidingWindowState(now);
             }
 
-            // How many windows have passed?
-            Duration elapsed = Duration.between(
-                    state.getCurrentWindowStartTime(),
-                    now
-            );
-
+            Duration elapsed = Duration.between(state.getCurrentWindowStartTime(), now);
             long elapsedMillis = elapsed.toMillis();
             long windowsPassed = elapsedMillis / windowMillis;
 
             if (windowsPassed == 1) {
-
                 state.setPrevWindowCount(state.getCurrentWindowCount());
                 state.setCurrentWindowCount(0);
-                state.setCurrentWindowStartTime(
-                        state.getCurrentWindowStartTime().plus(winSize)
-                );
-
+                state.setCurrentWindowStartTime(state.getCurrentWindowStartTime().plus(winSize));
             } else if (windowsPassed > 1) {
-
                 state.setPrevWindowCount(0);
                 state.setCurrentWindowCount(0);
-
                 long nowMillis = now.toEpochMilli();
                 long alignedWindowStart = nowMillis - (nowMillis % windowMillis);
-
-                state.setCurrentWindowStartTime(
-                        Instant.ofEpochMilli(alignedWindowStart)
-                );
+                state.setCurrentWindowStartTime(Instant.ofEpochMilli(alignedWindowStart));
             }
 
             long elapsedInsideCurrentWindow =
-                    Duration.between(
-                            state.getCurrentWindowStartTime(),
-                            now
-                    ).toMillis();
+                    Duration.between(state.getCurrentWindowStartTime(), now).toMillis();
 
-            double weight =
-                    (double) (windowMillis - elapsedInsideCurrentWindow)
-                            / windowMillis;
+            double weight = (double) (windowMillis - elapsedInsideCurrentWindow) / windowMillis;
+            double estimate = weight * state.getPrevWindowCount() + state.getCurrentWindowCount();
 
-            double estimate =
-                    weight * state.getPrevWindowCount()
-                            + state.getCurrentWindowCount();
+            Instant reset = state.getCurrentWindowStartTime().plus(winSize);
+            resetAt.set(reset);
+            retryAfter.set(Duration.between(now, reset));
 
-            estimatedRequests.set(estimate);
-
-            if (estimate >= config.limit()) {
-
+            if (estimate + 1 > config.limit()) {
                 accepted.set(false);
-
-                Instant reset =
-                        state.getCurrentWindowStartTime().plus(config.windowSize());
-
-                resetAt.set(reset);
-                retryAfter.set(Duration.between(now, reset));
-
+                finalEstimate.set(estimate);
                 return state;
             }
 
-            state.setCurrentWindowCount(
-                    state.getCurrentWindowCount() + 1
-            );
-
-            estimatedRequests.set(estimate + 1);
+            state.setCurrentWindowCount(state.getCurrentWindowCount() + 1);
             accepted.set(true);
-
-            Instant reset =
-                    state.getCurrentWindowStartTime().plus(winSize);
-
-            resetAt.set(reset);
-            retryAfter.set(Duration.between(now, reset));
+            // Accept path: count increased by 1, so final estimate is `estimate + 1`.
+            // BOTH branches now report the estimate AFTER this operation.
+            finalEstimate.set(estimate + 1);
 
             return state;
         });
 
+        // Consistent semantics: `finalEstimate` is the occupancy AFTER this request
+        // (accepted → estimate+1; rejected → estimate). `floor` correctly yields how
+        // many WHOLE additional requests still fit before the estimate reaches `limit`.
         int remainingRequests = Math.max(
                 0,
-                config.limit() - (int) Math.ceil(estimatedRequests.get())
+                (int) Math.floor(config.limit() - finalEstimate.get())
         );
 
         return new RateLimitResult(
