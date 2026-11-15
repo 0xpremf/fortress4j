@@ -16,6 +16,9 @@ public record TokenBucketConfig(
         if (refillIntervalNanos <= 0) {
             throw new IllegalArgumentException("refillIntervalNanos must be greater than 0");
         }
+        if (bucketSize > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("bucketSize must not exceed Integer.MAX_VALUE");
+        }
     }
 
     public long fullRefillNanos() {

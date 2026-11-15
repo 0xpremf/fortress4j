@@ -4,6 +4,7 @@ target/
 !src/test/**/target/
 .kotlin
 errors.md
+redisimplemetation.md
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
