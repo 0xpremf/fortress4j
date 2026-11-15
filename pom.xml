@@ -10,6 +10,7 @@
         <module>fortress4j-core</module>
         <module>fortress4j-examples</module>
         <module>fortress4j-redis</module>
+        <module>fortress4j-spring-boot-starter</module>
     </modules>
 
     <properties>
@@ -20,6 +21,7 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Module dependencies -->
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>fortress4j-core</artifactId>
@@ -30,6 +32,13 @@
                 <artifactId>fortress4j-redis</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>fortress4j-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+
             <dependency>
                 <groupId>io.lettuce</groupId>
                 <artifactId>lettuce-core</artifactId>
