@@ -7,7 +7,11 @@ import com.github.fortress4j.config.FixedWindowConfig;
 import com.github.fortress4j.config.SlidingWindowConfig;
 import com.github.fortress4j.config.TokenBucketConfig;
 import com.github.fortress4j.spring.RateLimiterRegistry.Entry;
+import com.github.fortress4j.states.TokenBucketState;
 import com.github.fortress4j.storage.InMemoryStorage;
+
+import javax.security.auth.kerberos.KerberosKey;
+import javax.swing.*;
 
 public class InMemoryLimiterFactory implements LimiterFactory {
 
@@ -16,7 +20,10 @@ public class InMemoryLimiterFactory implements LimiterFactory {
         return switch (spec.algorithm()) {
             case TOKEN_BUCKET -> {
                 var config = tokenBucketConfig(name, spec);
-                yield new Entry(new TokenBucketRateLimiter<>(config, new InMemoryStorage<>()), spec.capacity());
+                var storage = new InMemoryStorage<String, TokenBucketState>();
+                yield new Entry(
+                        new TokenBucketRateLimiter(config,storage),
+                        spec.capacity());
             }
             case FIXED_WINDOW -> {
                 var config = new FixedWindowConfig(

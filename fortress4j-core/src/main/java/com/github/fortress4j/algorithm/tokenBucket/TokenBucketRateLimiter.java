@@ -23,6 +23,11 @@ public class TokenBucketRateLimiter<K> implements RateLimiter<K> {
         this(config, storage, Clock.systemUTC(), ticker);
     }
 
+    public TokenBucketRateLimiter(TokenBucketConfig config, InMemoryStorage<K,TokenBucketState> storage){
+
+        this(config, storage, Clock.systemUTC(),System::nanoTime);
+    }
+
     public TokenBucketRateLimiter(TokenBucketConfig config, InMemoryStorage<K, TokenBucketState> storage, Clock clock, LongSupplier ticker) {
         this.config = Objects.requireNonNull(config, "config cannot be null");
         this.storage = Objects.requireNonNull(storage, "storage cannot be null");
