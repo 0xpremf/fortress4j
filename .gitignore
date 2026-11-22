@@ -5,6 +5,7 @@ target/
 .kotlin
 errors.md
 redisimplemetation.md
+personal-notes.md
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
