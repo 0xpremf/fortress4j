@@ -11,5 +11,5 @@ import java.lang.annotation.Target;
 public @interface RateLimit {
     String value();
 
-    String Key() default "";
+    String key() default "";
 }

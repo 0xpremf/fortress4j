@@ -1,0 +1,11 @@
+fortress4j:
+  limiters:
+    login:
+      algorithm: fixed-window
+      limit: 5
+      window: 1m
+    api:
+      algorithm: token-bucket
+      capacity: 10
+      refill-amount: 2
+      refill-interval: 1s

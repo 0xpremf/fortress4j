@@ -29,7 +29,7 @@ public class SpELKeyResolver implements KeyResolver{
 
     @Override
     public String resolve(HttpServletRequest request, RateLimit annotation) {
-        String expression = annotation.Key();
+        String expression = annotation.key();
         String key = null;
 
 
